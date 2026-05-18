@@ -1,0 +1,138 @@
+pipeline {
+    agent any
+
+    environment {
+        HARBOR_REGISTRY = 'harbor.example.com'
+        HARBOR_PROJECT  = 'airflow'
+        IMAGE_NAME      = 'airflow'
+        IMAGE_TAG       = "v${env.BUILD_NUMBER}"
+        HARBOR_CRED_ID  = 'harbor-credentials'
+        DEPLOY_HOST     = 'user@server'
+        DEPLOY_PATH     = '/opt/airflow'
+        GCHAT_WEBHOOK   = credentials('gchat-webhook-url')
+    }
+
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup') {
+            steps {
+                sh '''
+                    curl -LsSf https://astral.sh/uv/install.sh | sh
+                    export PATH="$HOME/.local/bin:$PATH"
+                    uv sync
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    export PATH="$HOME/.local/bin:$PATH"
+                    uv run pytest tests/ -v --tb=short --junitxml=test-results.xml
+                '''
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'test-results.xml'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG} \
+                               ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Push to Harbor') {
+            when {
+                branch 'main'
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${HARBOR_CRED_ID}",
+                    usernameVariable: 'HARBOR_USER',
+                    passwordVariable: 'HARBOR_PASS'
+                )]) {
+                    sh """
+                        echo "\${HARBOR_PASS}" | docker login ${HARBOR_REGISTRY} -u "\${HARBOR_USER}" --password-stdin
+                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}
+                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest
+                        docker logout ${HARBOR_REGISTRY}
+                    """
+                }
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sshagent(credentials: ['deploy-ssh-key']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${DEPLOY_HOST} '
+                            cd ${DEPLOY_PATH} && \
+                            docker compose pull && \
+                            docker compose up -d
+                        '
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh """
+                docker rmi ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG} || true
+                docker rmi ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest || true
+            """
+            cleanWs()
+        }
+        success {
+            echo "Deployed ${IMAGE_NAME}:${IMAGE_TAG}"
+            sh """
+                curl -s -X POST "${GCHAT_WEBHOOK}" \
+                    -H 'Content-Type: application/json' \
+                    -d '{
+                        "cards": [{
+                            "header": { "title": "✅ Deploy Success", "subtitle": "${env.JOB_NAME}" },
+                            "sections": [{ "widgets": [{ "keyValue": { "topLabel": "Image", "content": "${IMAGE_NAME}:${IMAGE_TAG}" }}, { "keyValue": { "topLabel": "Build", "content": "#${env.BUILD_NUMBER}" }}, { "buttons": [{ "textButton": { "text": "Open Jenkins", "onClick": { "openLink": { "url": "${env.BUILD_URL}" }}}}]}]}]
+                        }]
+                    }'
+            """
+        }
+        failure {
+            echo 'Pipeline failed'
+            sh """
+                curl -s -X POST "${GCHAT_WEBHOOK}" \
+                    -H 'Content-Type: application/json' \
+                    -d '{
+                        "cards": [{
+                            "header": { "title": "❌ Deploy Failed", "subtitle": "${env.JOB_NAME}" },
+                            "sections": [{ "widgets": [{ "keyValue": { "topLabel": "Image", "content": "${IMAGE_NAME}:${IMAGE_TAG}" }}, { "keyValue": { "topLabel": "Build", "content": "#${env.BUILD_NUMBER}" }}, { "buttons": [{ "textButton": { "text": "Open Jenkins", "onClick": { "openLink": { "url": "${env.BUILD_URL}" }}}}]}]}]
+                        }]
+                    }'
+            """
+        }
+    }
+}
