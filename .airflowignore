@@ -1,0 +1,17 @@
+connector/
+job/
+utils/
+tests/
+docs/
+model/
+.venv/
+__pycache__/
+*.pyc
+Dockerfile*
+Jenkinsfile*
+docker-compose*
+pyproject.toml
+uv.lock
+README.md
+.env*
+.git/

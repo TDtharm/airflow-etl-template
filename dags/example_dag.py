@@ -5,9 +5,11 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 
+import os
+
 from utils.notify import on_failure_callback, on_retry_callback, on_success_callback
 
-PROJECT_DIR = "/opt/airflow/dags/etl-template"
+PROJECT_DIR = os.environ.get("ETL_PROJECT_DIR", "/opt/airflow/dags/etl-template")
 RUN_CMD = f"cd {PROJECT_DIR} && uv run main.py"
 
 default_args = {

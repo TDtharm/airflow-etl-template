@@ -108,6 +108,10 @@ docker run --env-file .env etl-template --job data_sync
 | [docs/operators.md](docs/operators.md) | DAG template, BashOperator, DockerOperator, GChat callbacks, retry |
 | [docs/schema.md](docs/schema.md) | CREATE TABLE generators (postgres/mssql/impala/kudu/iceberg) |
 | [docs/upsert.md](docs/upsert.md) | Upsert/incremental functions, batch sizes, examples |
+| [docs/scaling.md](docs/scaling.md) | DB insert scaling — library เลือกตาม volume (PG/MSSQL/Kudu/Iceberg) |
+| [docs/processing.md](docs/processing.md) | Processing engines — pandas vs polars vs dask vs Spark |
+| [docs/patterns.md](docs/patterns.md) | Pipeline patterns — CDC, SCD, Incremental, Idempotency, Backfill |
+| [docs/error-handling.md](docs/error-handling.md) | Error handling — Retry, DLQ, Circuit breaker, Graceful shutdown |
 
 ## CI/CD
 
