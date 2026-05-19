@@ -107,6 +107,127 @@ catchup_by_default = False
 
 ---
 
+## DAG Re-parsing at Scale
+
+Airflow scheduler จะ **re-parse ทุก DAG file วนซ้ำ** ตลอดเวลา — พอ DAG เยอะขึ้น CPU scheduler จะสูงขึ้นเรื่อยๆ
+
+### ปัญหาที่เจอ
+
+| จำนวน DAGs | อาการ | สาเหตุ |
+|---|---|---|
+| 10-30 | ปกติ | — |
+| 30-80 | DAG ใหม่ขึ้นช้า 1-3 นาที | parse loop ยาวขึ้น |
+| 80-200 | Scheduler CPU 80-100% | parse ไม่ทัน, queue backlog |
+| > 200 | Task stuck in scheduled state | scheduler ไม่มี cycle เหลือ dispatch |
+
+### Tuning สำหรับ DAGs เยอะ
+
+```ini
+[scheduler]
+# 1. เพิ่ม parsing processes (default=2, scale ตาม CPU)
+#    กฎ: parsing_processes = min(num_dag_files / 4, available_cores - 2)
+parsing_processes = 4          # 50-100 DAGs on 8-core
+# parsing_processes = 8        # 100-200 DAGs on 16-core
+
+# 2. เพิ่ม interval ระหว่าง re-parse (trade-off: DAG update ช้าลง)
+min_file_process_interval = 60    # 50+ DAGs (default 30)
+# min_file_process_interval = 120  # 100+ DAGs
+
+# 3. scan หา file ใหม่ช้าลง (ไม่ต้อง scan บ่อยถ้าไม่ค่อย add DAG ใหม่)
+dag_dir_list_interval = 120       # 50+ DAGs (default 60)
+
+# 4. เปิด DAG serialization (store parsed DAG ใน DB — ลด re-parse)
+#    Airflow 2.x เปิด default อยู่แล้ว
+```
+
+### .airflowignore (สำคัญมาก)
+
+ลดจำนวน files ที่ scheduler ต้อง parse:
+
+```
+# .airflowignore — อยู่ใน dags/ folder
+connector/
+utils/
+job/
+tests/
+docs/
+*.md
+*.txt
+__pycache__
+```
+
+> ถ้าไม่ใส่ `.airflowignore` — scheduler จะ parse **ทุกไฟล์ .py** ใน dags_folder tree
+
+### DAG File Best Practices (ลด parse time)
+
+```python
+# ❌ BAD — import หนักที่ top-level (parse ทุก file ทุก 30-60 วินาที)
+import pandas as pd
+import numpy as np
+from heavy_module import expensive_init
+
+# ✅ GOOD — import ภายใน function (parse เร็ว, import ตอน execute)
+def extract(**context):
+    import pandas as pd
+    df = pd.read_sql(...)
+```
+
+```python
+# ❌ BAD — DAG file เยอะ logic (ช้าตอน parse)
+with DAG(...) as dag:
+    for table in get_tables_from_db():  # query DB ทุก parse cycle!
+        task = PythonOperator(...)
+
+# ✅ GOOD — static DAG definition, dynamic logic ใน task
+TABLES = ["users", "orders", "products"]  # hardcode list
+
+with DAG(...) as dag:
+    for table in TABLES:
+        task = PythonOperator(...)
+```
+
+### วัด Parse Time
+
+```bash
+# ดู parse time แต่ละ DAG file
+airflow dags report
+
+# test parse 1 file
+time airflow dags test my_dag 2025-01-01
+
+# ดู scheduler log
+tail -f $AIRFLOW_HOME/logs/scheduler/latest/scheduler.log | grep "parse"
+```
+
+### Scaling Matrix
+
+| DAGs | parsing_processes | min_file_process_interval | Scheduler RAM | CPU |
+|---|---|---|---|---|
+| < 30 | 2 | 30s | 2 GB | 2 cores |
+| 30-80 | 4 | 60s | 3 GB | 4 cores |
+| 80-200 | 6-8 | 90-120s | 4 GB | 6-8 cores |
+| > 200 | พิจารณา DAG Serialization + multiple schedulers | 120s+ | 8 GB | 8+ cores |
+
+### Multiple Schedulers (Airflow 2.x — HA)
+
+```ini
+# airflow.cfg
+[scheduler]
+# Airflow 2.x support multiple schedulers — share โหลด parse
+# Deploy scheduler 2+ instances ชี้ DB เดียวกัน
+
+# ทุก scheduler instance ใช้ config เดียวกัน
+# row-level locking ป้องกัน conflict
+use_row_level_locking = True
+```
+
+```bash
+# Run scheduler instance ที่ 2 (คนละ node หรือ container)
+airflow scheduler
+```
+
+---
+
 ## airflow.cfg — Celery + Redis
 
 ```ini

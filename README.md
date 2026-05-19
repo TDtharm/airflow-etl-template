@@ -106,12 +106,15 @@ docker run --env-file .env etl-template --job data_sync
 |---|---|
 | [docs/airflow.md](docs/airflow.md) | Airflow config, scheduler, worker, Redis, systemd (prod 8C/16GB) |
 | [docs/operators.md](docs/operators.md) | DAG template, BashOperator, DockerOperator, GChat callbacks, retry |
+| [docs/pools-workers.md](docs/pools-workers.md) | Pools (concurrency limit) & Workers (queue routing, autoscale, health) |
+| [docs/dag-best-practices.md](docs/dag-best-practices.md) | DAG file best practices — import, parse, naming, timeout, XCom |
 | [docs/schema.md](docs/schema.md) | CREATE TABLE generators (postgres/mssql/impala/kudu/iceberg) |
 | [docs/upsert.md](docs/upsert.md) | Upsert/incremental functions, batch sizes, examples |
 | [docs/scaling.md](docs/scaling.md) | DB insert scaling — library เลือกตาม volume (PG/MSSQL/Kudu/Iceberg) |
 | [docs/processing.md](docs/processing.md) | Processing engines — pandas vs polars vs dask vs Spark |
 | [docs/patterns.md](docs/patterns.md) | Pipeline patterns — CDC, SCD, Incremental, Idempotency, Backfill |
 | [docs/error-handling.md](docs/error-handling.md) | Error handling — Retry, DLQ, Circuit breaker, Graceful shutdown |
+| [docs/sql-vs-python.md](docs/sql-vs-python.md) | SQL vs Python — เมื่อไหร่ใช้อะไร, pushdown, hybrid pattern |
 
 ## CI/CD
 
