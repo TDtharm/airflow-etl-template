@@ -1,7 +1,7 @@
 """Healthcheck job – logic for service health verification."""
 
 from utils.config import Settings
-from job.base import BaseJob
+from jobs.base import BaseJob
 from utils.logger import log
 
 

@@ -178,9 +178,9 @@ def extract_users(**context):
         # 30 lines of validation...
         upsert_postgres(...)
 
-# ✅ GOOD — DAG file แค่ wire tasks, logic อยู่ใน job/
+# ✅ GOOD — DAG file แค่ wire tasks, logic อยู่ใน jobs/
 def extract_users(**context):
-    from job.sync_users import SyncUsersJob
+    from jobs.sync_users import SyncUsersJob
     from utils.config import Settings
     job = SyncUsersJob()
     job.run(Settings())
@@ -510,7 +510,7 @@ def test_dag_has_tags():
 | Giant single DAG (50+ tasks) | Split เป็น multiple DAGs + trigger |
 | No timeout | `execution_timeout` + `dagrun_timeout` |
 | DataFrame in XCom | Temp file path in XCom |
-| Logic in DAG file | Logic in `job/` module |
+| Logic in DAG file | Logic in `jobs/` module |
 | No retry | `retries=2-3` + exponential backoff |
 | No pool on DB tasks | `pool="postgres_pool"` |
 
@@ -576,7 +576,7 @@ with DAG(
 | **File** | 1 DAG / file, filename = dag_id |
 | **Import** | Lazy import heavy libs inside callable |
 | **Parse** | Static definition, no DB/API/file IO at parse time |
-| **Logic** | อยู่ใน `job/` module, DAG file แค่ wire tasks |
+| **Logic** | อยู่ใน `jobs/` module, DAG file แค่ wire tasks |
 | **Schedule** | `catchup=False`, fixed `start_date`, `max_active_runs=1` |
 | **Timeout** | ทุก task มี `execution_timeout`, DAG มี `dagrun_timeout` |
 | **Alert** | `on_failure_callback`, `on_retry_callback` ทุก DAG |

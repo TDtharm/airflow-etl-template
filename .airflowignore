@@ -1,5 +1,5 @@
 connector/
-job/
+jobs/
 utils/
 tests/
 docs/

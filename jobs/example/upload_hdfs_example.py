@@ -7,7 +7,7 @@ import tempfile
 import pandas as pd
 
 from connector.storage import HDFSConnector
-from job.base import BaseJob
+from jobs.base import BaseJob
 from utils.config import Settings
 from utils.logger import log
 

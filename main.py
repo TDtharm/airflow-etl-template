@@ -2,7 +2,7 @@ import argparse
 
 from utils.config import Settings
 from utils.logger import setup_logger
-from job import JOB_REGISTRY
+from jobs import JOB_REGISTRY
 
 
 def main():

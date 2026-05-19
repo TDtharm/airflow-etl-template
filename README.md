@@ -21,7 +21,7 @@ etl-template/
 │   ├── database/                   # postgres, mssql, impala, qdrant
 │   ├── storage/                    # minio, hdfs
 │   └── nats.py
-├── job/
+├── jobs/
 │   ├── base.py                     # BaseJob ABC
 │   ├── registry.py                 # JOB_REGISTRY
 │   └── example/                    # example jobs
@@ -43,8 +43,8 @@ etl-template/
 ## Adding a Job
 
 ```python
-# job/my_job.py
-from job.base import BaseJob
+# jobs/my_job.py
+from jobs.base import BaseJob
 from utils.config import Settings
 
 class MyJob(BaseJob):
@@ -54,7 +54,7 @@ class MyJob(BaseJob):
 ```
 
 ```python
-# job/registry.py
+# jobs/registry.py
 JOB_REGISTRY["my_job"] = MyJob
 ```
 
@@ -102,19 +102,28 @@ docker run --env-file .env etl-template --job data_sync
 
 ## Documentation
 
+### Usage (ใช้งาน template)
+
 | Doc | เนื้อหา |
 |---|---|
-| [docs/airflow.md](docs/airflow.md) | Airflow config, scheduler, worker, Redis, systemd (prod 8C/16GB) |
-| [docs/operators.md](docs/operators.md) | DAG template, BashOperator, DockerOperator, GChat callbacks, retry |
-| [docs/pools-workers.md](docs/pools-workers.md) | Pools (concurrency limit) & Workers (queue routing, autoscale, health) |
-| [docs/dag-best-practices.md](docs/dag-best-practices.md) | DAG file best practices — import, parse, naming, timeout, XCom |
-| [docs/schema.md](docs/schema.md) | CREATE TABLE generators (postgres/mssql/impala/kudu/iceberg) |
-| [docs/upsert.md](docs/upsert.md) | Upsert/incremental functions, batch sizes, examples |
-| [docs/scaling.md](docs/scaling.md) | DB insert scaling — library เลือกตาม volume (PG/MSSQL/Kudu/Iceberg) |
-| [docs/processing.md](docs/processing.md) | Processing engines — pandas vs polars vs dask vs Spark |
-| [docs/patterns.md](docs/patterns.md) | Pipeline patterns — CDC, SCD, Incremental, Idempotency, Backfill |
-| [docs/error-handling.md](docs/error-handling.md) | Error handling — Retry, DLQ, Circuit breaker, Graceful shutdown |
-| [docs/sql-vs-python.md](docs/sql-vs-python.md) | SQL vs Python — เมื่อไหร่ใช้อะไร, pushdown, hybrid pattern |
+| [docs/usage/airflow.md](docs/usage/airflow.md) | Airflow config, scheduler, worker, Redis, systemd (prod 8C/16GB) |
+| [docs/usage/operators.md](docs/usage/operators.md) | DAG template, BashOperator, DockerOperator, GChat callbacks, retry |
+| [docs/usage/schema.md](docs/usage/schema.md) | CREATE TABLE generators (postgres/mssql/impala/kudu/iceberg) |
+| [docs/usage/upsert.md](docs/usage/upsert.md) | Upsert/incremental functions, batch sizes, examples |
+| [docs/usage/scaling.md](docs/usage/scaling.md) | DB insert scaling — library เลือกตาม volume (PG/MSSQL/Kudu/Iceberg) |
+
+### Guide (แนวทาง/ความรู้)
+
+| Doc | เนื้อหา |
+|---|---|
+| [docs/guide/pools-workers.md](docs/guide/pools-workers.md) | Pools (concurrency limit) & Workers (queue routing, autoscale, health) |
+| [docs/guide/dag-best-practices.md](docs/guide/dag-best-practices.md) | DAG file best practices — import, parse, naming, timeout, XCom |
+| [docs/guide/orchestration-patterns.md](docs/guide/orchestration-patterns.md) | Orchestration — Sensors, Trigger DAG, Dataset scheduling, Branching |
+| [docs/guide/processing.md](docs/guide/processing.md) | Processing engines — pandas vs polars vs dask vs Spark |
+| [docs/guide/patterns.md](docs/guide/patterns.md) | Pipeline patterns — CDC, SCD, Incremental, Idempotency, Backfill |
+| [docs/guide/error-handling.md](docs/guide/error-handling.md) | Error handling — Retry, DLQ, Circuit breaker, Graceful shutdown |
+| [docs/guide/sql-vs-python.md](docs/guide/sql-vs-python.md) | SQL vs Python — เมื่อไหร่ใช้อะไร, pushdown, hybrid pattern |
+| [docs/guide/connectors-comparison.md](docs/guide/connectors-comparison.md) | ODBC vs JDBC vs Native — เปรียบเทียบ, benchmark, เมื่อไหร่ใช้อะไร |
 
 ## CI/CD
 

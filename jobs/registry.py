@@ -1,9 +1,9 @@
 """Job registry – register all job classes here."""
 
-from job.data_sync import DataSyncJob
-from job.backup import BackupJob
-from job.healthcheck import HealthcheckJob
-from job.example import (
+from jobs.data_sync import DataSyncJob
+from jobs.backup import BackupJob
+from jobs.healthcheck import HealthcheckJob
+from jobs.example import (
     UpsertPostgresExample,
     UpsertMssqlExample,
     UpsertImpalaExample,

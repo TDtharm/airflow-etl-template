@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from connector.database import MSSQLConnector
-from job.base import BaseJob
+from jobs.base import BaseJob
 from utils.config import Settings
 from utils.schema import create_table_mssql
 from utils.upsert import upsert_mssql

@@ -1,7 +1,7 @@
 """Backup job – logic for database/file backups."""
 
 from utils.config import Settings
-from job.base import BaseJob
+from jobs.base import BaseJob
 from utils.logger import log
 
 

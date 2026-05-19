@@ -1,7 +1,7 @@
 """Data sync job – logic for syncing data between systems."""
 
 from utils.config import Settings
-from job.base import BaseJob
+from jobs.base import BaseJob
 from utils.logger import log
 
 

@@ -204,7 +204,7 @@ result.write.mode("overwrite").parquet("hdfs:///output/summary")
 
 **ถ้าจะใช้ Polars/Dask:**
 ```python
-# job/my_heavy_job.py
+# jobs/my_heavy_job.py
 import polars as pl
 from utils.upsert import upsert_postgres
 

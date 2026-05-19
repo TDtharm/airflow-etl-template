@@ -15,7 +15,7 @@
 │       ├── main.py
 │       ├── utils/
 │       ├── connector/
-│       ├── job/
+│       ├── jobs/
 │       ├── .env                ← secrets อยู่บน server เท่านั้น
 │       └── pyproject.toml
 ├── logs/
@@ -148,7 +148,7 @@ dag_dir_list_interval = 120       # 50+ DAGs (default 60)
 # .airflowignore — อยู่ใน dags/ folder
 connector/
 utils/
-job/
+jobs/
 tests/
 docs/
 *.md
@@ -382,7 +382,7 @@ ccache = /tmp/airflow_krb5_ccache
 
 ```
 connector/
-job/
+jobs/
 utils/
 tests/
 docs/
