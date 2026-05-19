@@ -31,6 +31,18 @@ class Settings(BaseSettings):
     impala_db: str = "default"
     impala_user: str = ""
     impala_password: str = ""
+    impala_auth_mechanism: str = "PLAIN"  # PLAIN, LDAP, GSSAPI
+    impala_use_ssl: bool = False
+    impala_kerberos_service_name: str = "impala"
+    impala_ca_cert: str | None = None
+
+    # -- HDFS --
+    hdfs_url: str = "http://localhost:9870"
+    hdfs_user: str = "hdfs"
+    hdfs_auth_mechanism: str = "PLAIN"  # PLAIN, LDAP, GSSAPI
+    hdfs_password: str = ""
+    hdfs_kerberos_principal: str | None = None
+    hdfs_root: str = "/"
 
     # -- MinIO --
     minio_endpoint: str = "localhost:9000"

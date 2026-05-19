@@ -4,14 +4,20 @@ from utils.converter import to_dataframe, to_json, to_csv, from_dataframe, from_
 from utils.retry import retry
 from utils.timer import timer
 from utils.file_handler import read_json, write_json, read_csv, write_csv, read_parquet, write_parquet
-from utils.schema import create_table_postgres, create_table_mssql, create_table_impala, create_table_kudu
-from utils.upsert import upsert_postgres, upsert_mssql, upsert_impala
+from utils.schema import create_table_postgres, create_table_mssql, create_table_impala, create_table_kudu, create_table_iceberg
+from utils.upsert import (
+    upsert_postgres, upsert_mssql, upsert_impala, insert_do_nothing_postgres,
+    upsert_parquet_impala, insert_incremental_parquet_impala,
+    upsert_iceberg, insert_incremental_iceberg,
+)
 
 __all__ = [
     "Settings", "setup_logger", "log",
     "to_dataframe", "to_json", "to_csv", "from_dataframe", "from_json",
     "retry", "timer",
     "read_json", "write_json", "read_csv", "write_csv", "read_parquet", "write_parquet",
-    "create_table_postgres", "create_table_mssql", "create_table_impala", "create_table_kudu",
-    "upsert_postgres", "upsert_mssql", "upsert_impala",
+    "create_table_postgres", "create_table_mssql", "create_table_impala", "create_table_kudu", "create_table_iceberg",
+    "upsert_postgres", "upsert_mssql", "upsert_impala", "insert_do_nothing_postgres",
+    "upsert_parquet_impala", "insert_incremental_parquet_impala",
+    "upsert_iceberg", "insert_incremental_iceberg",
 ]

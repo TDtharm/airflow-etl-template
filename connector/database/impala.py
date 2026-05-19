@@ -7,27 +7,54 @@ from loguru import logger
 
 
 class ImpalaConnector:
-    """Apache Impala connector."""
+    """Apache Impala connector with PLAIN/LDAP/GSSAPI (Kerberos) support."""
 
-    def __init__(self, host: str, port: int, database: str = "default", auth_mechanism: str = "PLAIN", user: str = "", password: str = ""):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        database: str = "default",
+        auth_mechanism: str = "PLAIN",
+        user: str = "",
+        password: str = "",
+        use_ssl: bool = False,
+        kerberos_service_name: str = "impala",
+        ca_cert: str | None = None,
+    ):
+        """
+        Args:
+            auth_mechanism: "PLAIN" (no auth), "LDAP", or "GSSAPI" (Kerberos).
+            kerberos_service_name: Kerberos service name (default "impala").
+            use_ssl: Enable TLS/SSL.
+            ca_cert: Path to CA cert file for SSL verification.
+        """
         self.host = host
         self.port = port
         self.database = database
         self.auth_mechanism = auth_mechanism
         self.user = user
         self.password = password
+        self.use_ssl = use_ssl
+        self.kerberos_service_name = kerberos_service_name
+        self.ca_cert = ca_cert
         self._conn = None
 
     def connect(self):
-        logger.info(f"Connecting to Impala at {self.host}:{self.port}/{self.database}")
-        self._conn = impala_connect(
+        logger.info(f"Connecting to Impala at {self.host}:{self.port}/{self.database} (auth={self.auth_mechanism})")
+        connect_kwargs = dict(
             host=self.host,
             port=self.port,
             database=self.database,
             auth_mechanism=self.auth_mechanism,
             user=self.user,
             password=self.password,
+            use_ssl=self.use_ssl,
         )
+        if self.auth_mechanism == "GSSAPI":
+            connect_kwargs["kerberos_service_name"] = self.kerberos_service_name
+        if self.ca_cert:
+            connect_kwargs["ca_cert"] = self.ca_cert
+        self._conn = impala_connect(**connect_kwargs)
         return self
 
     def close(self):
