@@ -1,0 +1,161 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  environment: &airflow-env
+    AIRFLOW_HOME: /opt/airflow
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+    AIRFLOW__CORE__PARALLELISM: "24"
+    AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "8"
+    AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: "2"
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Bangkok
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: "10"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: "20"
+    AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres:5432/airflow
+    AIRFLOW__CELERY__WORKER_CONCURRENCY: "8"
+    AIRFLOW__CELERY__WORKER_PREFETCH_MULTIPLIER: "1"
+    AIRFLOW__CELERY__TASK_ACKS_LATE: "true"
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "60"
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: "30"
+    AIRFLOW__SCHEDULER__PARSING_PROCESSES: "2"
+    AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: "5"
+    AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: "false"
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+    # -- ETL project env vars (override via .env file) --
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    POSTGRES_DB: postgres
+    POSTGRES_USER: airflow
+    POSTGRES_PASSWORD: airflow
+    GCHAT_WEBHOOK_URL: ""
+  volumes:
+    - ./dags:/opt/airflow/dags/etl-template/dags
+    - ./main.py:/opt/airflow/dags/etl-template/main.py
+    - ./connector:/opt/airflow/dags/etl-template/connector
+    - ./job:/opt/airflow/dags/etl-template/job
+    - ./utils:/opt/airflow/dags/etl-template/utils
+    - ./pyproject.toml:/opt/airflow/dags/etl-template/pyproject.toml
+    - ./uv.lock:/opt/airflow/dags/etl-template/uv.lock
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 1gb --maxmemory-policy allkeys-lru --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com || true
+        echo "Init complete"
+    restart: "no"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: airflow scheduler
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  airflow-worker:
+    <<: *airflow-common
+    command: airflow celery worker --queues default,etl
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 10G
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: airflow webserver --port 8080 --workers 4
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  flower:
+    <<: *airflow-common
+    command: airflow celery flower --port 5555
+    ports:
+      - "5555:5555"
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+volumes:
+  postgres-data:
+  redis-data:
+  airflow-logs:

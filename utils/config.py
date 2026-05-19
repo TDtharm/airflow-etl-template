@@ -54,3 +54,6 @@ class Settings(BaseSettings):
     nats_servers: str = "nats://localhost:4222"
     nats_user: str | None = None
     nats_password: str | None = None
+
+    # -- Notification --
+    gchat_webhook_url: str = ""

@@ -37,8 +37,10 @@ etl-template/
 │   ├── converter.py        # DataFrame ↔ JSON/CSV
 │   └── file_handler.py     # Read/write JSON, CSV, Parquet
 ├── tests/
-├── Dockerfile
-├── docker-compose.yml      # Local dev services
+├── docs/                   # Schema, Upsert, Airflow, Operators docs
+├── Dockerfile              # ETL job image
+├── Dockerfile.airflow      # Airflow + ETL image
+├── docker-compose.airflow.yml  # Full Airflow stack (Celery+Redis)
 ├── Jenkinsfile             # CI/CD: git pull deploy
 └── Jenkinsfile.docker      # CI/CD: Docker + Harbor
 ```
@@ -133,6 +135,23 @@ with DAG("etl_example", schedule="0 2 * * *", start_date=datetime(2025,1,1), cat
     )
 ```
 
+## Deploy — Docker Compose (Airflow Full Stack)
+
+รัน Airflow + CeleryExecutor + Redis + PostgreSQL ในเครื่องเดียว:
+
+```bash
+docker compose -f docker-compose.airflow.yml up -d
+```
+
+| Service | Port | Description |
+|---|---|---|
+| Webserver | 8080 | Airflow UI (admin/admin) |
+| Flower | 5555 | Celery worker monitor |
+| Redis | 6379 | Broker |
+| PostgreSQL | 5432 | Metadata DB |
+
+Config ตั้งค่าตาม production spec (8-core 16GB) — ดูรายละเอียดที่ [docs/airflow.md](docs/airflow.md)
+
 ## Impala / HDFS — Kerberos & LDAP
 
 ```bash
@@ -160,9 +179,17 @@ uv run main.py --job example_upload_hdfs
 
 > รายละเอียด parameters, examples, partition: [docs/schema.md](docs/schema.md) | [docs/upsert.md](docs/upsert.md)
 
+## Documentation
+
+| Doc | เนื้อหา |
+|---|---|
+| [docs/airflow.md](docs/airflow.md) | Airflow config, scheduler, worker, Redis, systemd |
+| [docs/operators.md](docs/operators.md) | DAG template, operators, callbacks, retry |
+| [docs/schema.md](docs/schema.md) | CREATE TABLE generators |
+| [docs/upsert.md](docs/upsert.md) | Upsert/incremental functions |
+
 ## CI/CD (Jenkins)
 
 - **Jenkinsfile** — git pull deploy → `/opt/airflow/dags/etl-template`
 - **Jenkinsfile.docker** — build → push Harbor → SSH docker compose pull
 - ทั้ง 2 pipeline มี Google Chat notification
-# airflow-etl-template
