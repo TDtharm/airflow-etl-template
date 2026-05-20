@@ -106,6 +106,8 @@ docker run --env-file .env etl-template --job data_sync
 
 | Doc | เนื้อหา |
 |---|---|
+| [docs/usage/connectors.md](docs/usage/connectors.md) | Connectors ทุกตัว — PG, MSSQL, Impala, Qdrant, HDFS, MinIO, NATS |
+| [docs/usage/deployment.md](docs/usage/deployment.md) | Deploy step-by-step — on-premise, Docker, Compose, Kerberos, secrets |
 | [docs/usage/airflow.md](docs/usage/airflow.md) | Airflow config, scheduler, worker, Redis, systemd (prod 8C/16GB) |
 | [docs/usage/operators.md](docs/usage/operators.md) | DAG template, BashOperator, DockerOperator, GChat callbacks, retry |
 | [docs/usage/schema.md](docs/usage/schema.md) | CREATE TABLE generators (postgres/mssql/impala/kudu/iceberg) |
