@@ -10,9 +10,11 @@ from loguru import logger
 try:
     from hdfs import InsecureClient
     from hdfs.ext.kerberos import KerberosClient
+    from hdfs.util import HdfsError
 except ImportError:
     InsecureClient = None
     KerberosClient = None
+    HdfsError = Exception
 
 
 class HDFSConnector:
@@ -56,31 +58,35 @@ class HDFSConnector:
 
         logger.info(f"Connecting to HDFS at {self.url} (auth={self.auth_mechanism})")
 
-        if self.auth_mechanism == "GSSAPI":
-            if KerberosClient is None:
-                raise ImportError("hdfs[kerberos] not installed. Run: uv add hdfs[kerberos]")
-            self._client = KerberosClient(
-                url=self.url,
-                root=self.root,
-                mutual_auth="OPTIONAL",
-            )
-        elif self.auth_mechanism == "LDAP":
-            import requests
-            session = requests.Session()
-            session.auth = (self.user, self.password)
-            self._client = InsecureClient(
-                url=self.url,
-                user=self.user,
-                root=self.root,
-                session=session,
-            )
-        else:
-            # PLAIN — no auth
-            self._client = InsecureClient(
-                url=self.url,
-                user=self.user,
-                root=self.root,
-            )
+        try:
+            if self.auth_mechanism == "GSSAPI":
+                if KerberosClient is None:
+                    raise ImportError("hdfs[kerberos] not installed. Run: uv add hdfs[kerberos]")
+                self._client = KerberosClient(
+                    url=self.url,
+                    root=self.root,
+                    mutual_auth="OPTIONAL",
+                )
+            elif self.auth_mechanism == "LDAP":
+                import requests
+                session = requests.Session()
+                session.auth = (self.user, self.password)
+                self._client = InsecureClient(
+                    url=self.url,
+                    user=self.user,
+                    root=self.root,
+                    session=session,
+                )
+            else:
+                # PLAIN — no auth
+                self._client = InsecureClient(
+                    url=self.url,
+                    user=self.user,
+                    root=self.root,
+                )
+        except Exception as e:
+            logger.error(f"Failed to connect to HDFS at {self.url}: {e}")
+            raise ConnectionError(f"HDFS connection failed: {e}") from e
         return self
 
     def close(self):
@@ -95,36 +101,64 @@ class HDFSConnector:
 
     def upload_bytes(self, hdfs_path: str, data: bytes, overwrite: bool = True):
         """Upload bytes to HDFS."""
-        self.client.write(hdfs_path, data=data, overwrite=overwrite)
-        logger.info(f"Uploaded {len(data)} bytes -> {hdfs_path}")
+        try:
+            self.client.write(hdfs_path, data=data, overwrite=overwrite)
+            logger.info(f"Uploaded {len(data)} bytes -> {hdfs_path}")
+        except HdfsError as e:
+            logger.error(f"Failed to upload bytes to {hdfs_path}: {e}")
+            raise
 
     def upload_file(self, hdfs_path: str, local_path: str, overwrite: bool = True):
         """Upload local file to HDFS."""
-        self.client.upload(hdfs_path, local_path, overwrite=overwrite)
-        logger.info(f"Uploaded {local_path} -> {hdfs_path}")
+        try:
+            self.client.upload(hdfs_path, local_path, overwrite=overwrite)
+            logger.info(f"Uploaded {local_path} -> {hdfs_path}")
+        except (HdfsError, FileNotFoundError) as e:
+            logger.error(f"Failed to upload {local_path} to {hdfs_path}: {e}")
+            raise
 
     def download_bytes(self, hdfs_path: str) -> bytes:
         """Download file from HDFS as bytes."""
-        with self.client.read(hdfs_path) as reader:
-            return reader.read()
+        try:
+            with self.client.read(hdfs_path) as reader:
+                return reader.read()
+        except HdfsError as e:
+            logger.error(f"Failed to download {hdfs_path}: {e}")
+            raise
 
     def download_file(self, hdfs_path: str, local_path: str):
         """Download file from HDFS to local."""
-        self.client.download(hdfs_path, local_path, overwrite=True)
-        logger.info(f"Downloaded {hdfs_path} -> {local_path}")
+        try:
+            self.client.download(hdfs_path, local_path, overwrite=True)
+            logger.info(f"Downloaded {hdfs_path} -> {local_path}")
+        except HdfsError as e:
+            logger.error(f"Failed to download {hdfs_path} to {local_path}: {e}")
+            raise
 
     def list_dir(self, hdfs_path: str) -> list[str]:
         """List files in HDFS directory."""
-        return self.client.list(hdfs_path)
+        try:
+            return self.client.list(hdfs_path)
+        except HdfsError as e:
+            logger.error(f"Failed to list {hdfs_path}: {e}")
+            raise
 
     def makedirs(self, hdfs_path: str):
         """Create directories recursively."""
-        self.client.makedirs(hdfs_path)
+        try:
+            self.client.makedirs(hdfs_path)
+        except HdfsError as e:
+            logger.error(f"Failed to create directory {hdfs_path}: {e}")
+            raise
 
     def delete(self, hdfs_path: str, recursive: bool = False):
         """Delete file or directory."""
-        self.client.delete(hdfs_path, recursive=recursive)
-        logger.info(f"Deleted {hdfs_path}")
+        try:
+            self.client.delete(hdfs_path, recursive=recursive)
+            logger.info(f"Deleted {hdfs_path}")
+        except HdfsError as e:
+            logger.error(f"Failed to delete {hdfs_path}: {e}")
+            raise
 
     def status(self, hdfs_path: str) -> dict[str, Any] | None:
         """Get file/directory status. Returns None if not found."""

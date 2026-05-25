@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     impala_kerberos_service_name: str = "impala"
     impala_ca_cert: str | None = None
 
+    # -- ClickHouse --
+    clickhouse_host: str = "localhost"
+    clickhouse_port: int = 8123
+    clickhouse_db: str = "default"
+    clickhouse_user: str = "default"
+    clickhouse_password: str = ""
+    clickhouse_secure: bool = False
+
     # -- HDFS --
     hdfs_url: str = "http://localhost:9870"
     hdfs_user: str = "hdfs"

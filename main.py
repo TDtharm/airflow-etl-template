@@ -1,7 +1,8 @@
 import argparse
+import sys
 
 from utils.config import Settings
-from utils.logger import setup_logger
+from utils.logger import setup_logger, log
 from jobs import JOB_REGISTRY
 
 
@@ -29,7 +30,15 @@ def main():
 
     settings = Settings()
     job = JOB_REGISTRY[args.job]()
-    job(settings)
+
+    try:
+        job(settings)
+    except KeyboardInterrupt:
+        log.warning("Job interrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        log.error(f"Job '{args.job}' failed: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

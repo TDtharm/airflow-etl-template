@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "clickhouse-connect>=1.0.1",
     "hdfs>=2.7.3",
     "impyla>=0.22.0",
     "loguru>=0.7.3",
