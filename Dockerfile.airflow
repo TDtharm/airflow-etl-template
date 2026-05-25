@@ -1,0 +1,35 @@
+FROM python:3.11-slim
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Install Airflow
+ARG AIRFLOW_VERSION=2.10.4
+ARG PYTHON_VERSION=3.11
+RUN pip install --no-cache-dir \
+    "apache-airflow[celery,redis,postgres]==${AIRFLOW_VERSION}" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
+# Setup airflow home
+ENV AIRFLOW_HOME=/opt/airflow
+RUN mkdir -p ${AIRFLOW_HOME}/dags/etl-template
+
+# Copy ETL project for uv sync (deps)
+WORKDIR ${AIRFLOW_HOME}/dags/etl-template
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+# Copy source
+COPY . .
+
+# .airflowignore to skip non-DAG files
+RUN echo "connector/\njob/\nutils/\ntests/\ndocs/\n.venv/" > .airflowignore
+
+WORKDIR ${AIRFLOW_HOME}

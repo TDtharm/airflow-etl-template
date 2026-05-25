@@ -1,143 +1,134 @@
 # ETL Template
 
-ETL pipeline template — ใช้ `uv` + Python 3.11, รองรับ connectors หลายตัว, deploy ผ่าน Jenkins + Airflow
+Python 3.11 + `uv` — deploy on-premise (Airflow + Jenkins) หรือ Docker
 
-## Connectors
+## Quick Start
 
-| Service    | Library         | Port  | Path                        |
-|------------|-----------------|-------|-----------------------------|
-| PostgreSQL | `psycopg2`      | 5432  | `connector/database/postgres.py` |
-| MSSQL      | `pymssql`       | 1433  | `connector/database/mssql.py`    |
-| Impala     | `impyla`        | 21050 | `connector/database/impala.py`   |
-| Qdrant     | `qdrant-client` | 6333  | `connector/database/qdrant.py`   |
-| MinIO      | `minio`         | 9000  | `connector/storage/minio.py`     |
-| NATS       | `nats-py`       | 4222  | `connector/nats.py`              |
+```bash
+uv sync                        # install dependencies
+cp .env.example .env           # configure
+uv run main.py --list          # list jobs
+uv run main.py --job data_sync # run job
+uv run pytest                  # test
+```
 
 ## Project Structure
 
 ```
 etl-template/
-├── main.py                     # Entry point (--job, --list, --log-level)
+├── main.py                         # Entry point (--job, --list, --log-level)
 ├── connector/
-│   ├── database/               # DB connectors (postgres, mssql, impala, qdrant)
-│   ├── storage/                # Object storage (minio)
-│   └── nats.py                 # Messaging (nats)
-├── job/
-│   ├── base.py                 # BaseJob ABC
-│   ├── registry.py             # JOB_REGISTRY mapping
-│   ├── data_sync.py            # Example job
-│   ├── backup.py               # Example job
-│   └── healthcheck.py          # Example job
-├── dags/
-│   └── example_dag.py          # Airflow DAG example (BashOperator → main.py)
-├── model/
-│   └── base.py                 # Pydantic base model
+│   ├── database/                   # postgres, mssql, impala, qdrant
+│   ├── storage/                    # minio, hdfs
+│   └── nats.py
+├── jobs/
+│   ├── base.py                     # BaseJob ABC
+│   ├── registry.py                 # JOB_REGISTRY
+│   └── example/                    # example jobs
 ├── utils/
-│   ├── config.py               # Settings (pydantic-settings, .env)
-│   ├── logger.py               # Loguru logger
-│   ├── schema.py               # CREATE TABLE generators (postgres/mssql/impala/kudu)
-│   ├── upsert.py               # Upsert operations (postgres/mssql/impala)
-│   ├── converter.py            # DataFrame ↔ JSON/CSV converters
-│   ├── file_handler.py         # Read/write JSON, CSV, Parquet files
-│   ├── retry.py                # @retry decorator (exponential backoff)
-│   └── timer.py                # @timer decorator
-├── tests/                      # pytest tests
-├── Dockerfile                  # python:3.11-slim + uv
-├── docker-compose.yml          # Local dev services
-├── Jenkinsfile                 # CI/CD: git pull deploy
-├── Jenkinsfile.docker          # CI/CD: Docker + Harbor deploy
-├── .env.example                # Environment variable template
-└── pyproject.toml              # Dependencies (uv)
+│   ├── config.py                   # Settings (.env → pydantic-settings)
+│   ├── schema.py                   # CREATE TABLE generators
+│   ├── upsert.py                   # Upsert/incremental operations
+│   ├── notify.py                   # Google Chat callbacks
+│   └── ...                         # logger, retry, timer, converter, file_handler
+├── dags/                           # Airflow DAG
+├── docs/                           # Detailed documentation
+├── Dockerfile                      # ETL job image (docker run --job xxx)
+├── Dockerfile.airflow              # Airflow + Celery image
+├── docker-compose.airflow.yml      # Full Airflow stack
+├── Jenkinsfile                     # CI/CD: git pull deploy
+└── Jenkinsfile.docker              # CI/CD: Docker + Harbor
 ```
 
-## Quick Start
-
-```bash
-# install dependencies
-uv sync
-
-# copy and configure environment
-cp .env.example .env
-
-# list available jobs
-uv run main.py --list
-
-# run a job
-uv run main.py --job data_sync
-
-# run tests
-uv run pytest
-```
-
-## Adding a New Job
-
-1. สร้างไฟล์ใน `job/` — extend `BaseJob`:
+## Adding a Job
 
 ```python
-# job/my_job.py
-from job.base import BaseJob
+# jobs/my_job.py
+from jobs.base import BaseJob
 from utils.config import Settings
 
 class MyJob(BaseJob):
+    name = "my_job"
     def run(self, settings: Settings):
-        # your ETL logic here
-        pass
+        ...
 ```
 
-2. ลงทะเบียนใน `job/registry.py`:
-
 ```python
-from job.my_job import MyJob
+# jobs/registry.py
 JOB_REGISTRY["my_job"] = MyJob
 ```
 
-3. รัน:
+## Local Development
 
 ```bash
-uv run main.py --job my_job
+uv sync && cp .env.example .env
+uv run main.py --job data_sync     # รันตรง ไม่ต้อง Docker
 ```
 
-## Schema & Upsert
-
-```python
-import pandas as pd
-from utils.schema import create_table_postgres
-from utils.upsert import upsert_postgres
-from connector.database import PostgresConnector
-
-df = pd.DataFrame({"id": [1], "name": ["example"]})
-
-# Generate CREATE TABLE (auto-adds insert_date UTC + insert_by)
-print(create_table_postgres(df, "my_table", unique_columns=["id"]))
-
-# Upsert
-with PostgresConnector(host, port, db, user, pwd) as pg:
-    upsert_postgres(pg.conn, df, "my_table", conflict_columns=["id"])
-```
-
-รองรับ: `create_table_postgres`, `create_table_mssql`, `create_table_impala`, `create_table_kudu`
-Upsert: `upsert_postgres` (ON CONFLICT), `upsert_mssql` (MERGE), `upsert_impala` (UPSERT INTO)
-
-## Airflow DAG
-
-DAG ใช้ `BashOperator` เรียก `main.py --job xxx` — ดูตัวอย่างที่ `dags/example_dag.py`
-
-## Docker
-
+**Test Airflow locally:**
 ```bash
-# local dev (postgres, mssql, qdrant, minio, nats)
-docker compose up -d
+docker compose -f docker-compose.airflow.yml up -d
+# http://localhost:8080 (admin/admin) | Flower: http://localhost:5555
+```
 
-# build image
-docker build -t etl-template .
+> Source mount เป็น volume — แก้ code เห็นผลเลย ไม่ต้อง rebuild
 
-# run
+### Dockerfile ต่างกันยังไง?
+
+| File | Purpose | When |
+|---|---|---|
+| `Dockerfile` | ETL job image (`docker run --job xxx`) | Deploy ผ่าน Harbor / DockerOperator |
+| `Dockerfile.airflow` | Airflow + Celery + ETL | `docker-compose.airflow.yml` |
+
+## Deploy
+
+| วิธี | เหมาะกับ |
+|---|---|
+| **On-premise** — Jenkins git pull → Airflow `BashOperator` | Debug ง่าย, ไม่ต้อง build image |
+| **Docker** — `Dockerfile` → Harbor → `DockerOperator` | Isolated, reproducible |
+| **Compose** — `docker-compose.airflow.yml` บน VM | Single node full stack |
+
+**On-premise flow:**
+```
+Jenkins → git pull → /opt/airflow/dags/etl-template/
+Airflow → BashOperator → cd ... && uv run main.py --job xxx
+```
+
+**Docker flow:**
+```bash
+docker build -t harbor.company.com/etl/etl-template:latest .
 docker run --env-file .env etl-template --job data_sync
 ```
 
+## Documentation
+
+### Usage (ใช้งาน template)
+
+| Doc | เนื้อหา |
+|---|---|
+| [docs/usage/connectors.md](docs/usage/connectors.md) | Connectors ทุกตัว — PG, MSSQL, Impala, Qdrant, HDFS, MinIO, NATS |
+| [docs/usage/deployment.md](docs/usage/deployment.md) | Deploy step-by-step — on-premise, Docker, Compose, Kerberos, secrets |
+| [docs/usage/airflow.md](docs/usage/airflow.md) | Airflow config, scheduler, worker, Redis, systemd (prod 8C/16GB) |
+| [docs/usage/operators.md](docs/usage/operators.md) | DAG template, BashOperator, DockerOperator, GChat callbacks, retry |
+| [docs/usage/schema.md](docs/usage/schema.md) | CREATE TABLE generators (postgres/mssql/impala/kudu/iceberg) |
+| [docs/usage/upsert.md](docs/usage/upsert.md) | Upsert/incremental functions, batch sizes, examples |
+| [docs/usage/scaling.md](docs/usage/scaling.md) | DB insert scaling — library เลือกตาม volume (PG/MSSQL/Kudu/Iceberg) |
+
+### Guide (แนวทาง/ความรู้)
+
+| Doc | เนื้อหา |
+|---|---|
+| [docs/guide/pools-workers.md](docs/guide/pools-workers.md) | Pools (concurrency limit) & Workers (queue routing, autoscale, health) |
+| [docs/guide/dag-best-practices.md](docs/guide/dag-best-practices.md) | DAG file best practices — import, parse, naming, timeout, XCom |
+| [docs/guide/orchestration-patterns.md](docs/guide/orchestration-patterns.md) | Orchestration — Sensors, Trigger DAG, Dataset scheduling, Branching |
+| [docs/guide/processing.md](docs/guide/processing.md) | Processing engines — pandas vs polars vs dask vs Spark |
+| [docs/guide/patterns.md](docs/guide/patterns.md) | Pipeline patterns — CDC, SCD, Incremental, Idempotency, Backfill |
+| [docs/guide/error-handling.md](docs/guide/error-handling.md) | Error handling — Retry, DLQ, Circuit breaker, Graceful shutdown |
+| [docs/guide/sql-vs-python.md](docs/guide/sql-vs-python.md) | SQL vs Python — เมื่อไหร่ใช้อะไร, pushdown, hybrid pattern |
+| [docs/guide/connectors-comparison.md](docs/guide/connectors-comparison.md) | ODBC vs JDBC vs Native — เปรียบเทียบ, benchmark, เมื่อไหร่ใช้อะไร |
+
 ## CI/CD
 
-- **Jenkinsfile** — git pull deploy to `/opt/airflow/dags/`
+- **Jenkinsfile** — git pull deploy → `/opt/airflow/dags/etl-template`
 - **Jenkinsfile.docker** — build → push Harbor → SSH compose pull
-- ทั้ง 2 มี Google Chat notification
-# airflow-etl-template
+- Google Chat notification on success/failure

@@ -1,0 +1,28 @@
+[project]
+name = "etl-template"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "clickhouse-connect>=1.0.1",
+    "hdfs>=2.7.3",
+    "impyla>=0.22.0",
+    "loguru>=0.7.3",
+    "minio>=7.2.20",
+    "nats-py>=2.14.0",
+    "pandas>=3.0.3",
+    "psycopg2-binary>=2.9.12",
+    "pyarrow>=24.0.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "pymssql>=2.3.13",
+    "python-dotenv>=1.2.2",
+    "qdrant-client>=1.18.0",
+    "requests>=2.34.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

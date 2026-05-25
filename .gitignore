@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[oc]
+*.pyo
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables (secrets)
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kerberos
+*.keytab
+krb5cc_*
+
+# Data / temp files
+*.parquet
+*.csv
+*.json
+!.env.example
+data/
+tmp/
+temp/
+output/
+
+# Logs
+logs/
+*.log
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# uv
+uv.lock
+
+# Docker
+docker-compose.override.yml
+
+# Jupyter
+.ipynb_checkpoints/

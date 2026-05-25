@@ -1,0 +1,53 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# Environment (secrets — mount at runtime instead)
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.py[oc]
+*.pyo
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Data / temp (don't bake data into image)
+data/
+tmp/
+temp/
+output/
+logs/
+*.log
+
+# Docker
+Dockerfile
+Dockerfile.*
+docker-compose.yml
+docker-compose.override.yml
+.dockerignore
+
+# CI/CD
+Jenkinsfile
+Jenkinsfile.*
+
+# Docs
+README.md
+
+# Kerberos (mount at runtime)
+*.keytab
